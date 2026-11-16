@@ -1,0 +1,1131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Translation: step the ribosome</title>
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}[hidden]{display:none!important}</style>
+<style>
+/* Shared molecular palette: builder + lecture. Inlined by both builds. */
+:root {
+  --bg:#f4f6f7; --surface:#ffffff; --ink:#1b2930; --muted:#586a74;
+  --line:#d3dce1; --tmpl:#2b3a43; --dna:#1d6b87; --dna-2:#1d6b87;
+  --dna-ink:#ffffff; --rna:#c84b25; --rna-2:#c84b25; --rna-ink:#ffffff;
+  --accent:#1d6b87; --ok:#2b7a4b; --ok-bg:#e8f4ec; --bad:#b3261e;
+  --warn:#8a5d00; --focus:#e0a100; --slot:#e7eef1; --target:#7a4fb3;
+  --font-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark) {
+  :root:not([data-theme="light"]) {
+    --bg:#11171b; --surface:#182126; --ink:#e2eaee; --muted:#aabac3;
+    --line:#384954; --tmpl:#c7d2d8; --dna:#4cb0cf; --dna-2:#4cb0cf;
+    --dna-ink:#0d1a20; --rna:#ef7f5a; --rna-2:#ef7f5a; --rna-ink:#1c0d07;
+    --accent:#4cb0cf; --ok:#5cc28a; --ok-bg:#16281e; --bad:#f2766b;
+    --warn:#e3b448; --focus:#f2c14e; --slot:#1f2b31; --target:#b996ea;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:#11171b; --surface:#182126; --ink:#e2eaee; --muted:#aabac3;
+  --line:#384954; --tmpl:#c7d2d8; --dna:#4cb0cf; --dna-2:#4cb0cf;
+  --dna-ink:#0d1a20; --rna:#ef7f5a; --rna-2:#ef7f5a; --rna-ink:#1c0d07;
+  --accent:#4cb0cf; --ok:#5cc28a; --ok-bg:#16281e; --bad:#f2766b;
+  --warn:#e3b448; --focus:#f2c14e; --slot:#1f2b31; --target:#b996ea;
+  color-scheme:dark;
+}
+.material-key { display:flex; flex-wrap:wrap; align-items:center; gap:10px 22px; font-size:13px; color:var(--muted); }
+.material-key span { display:inline-flex; gap:8px; align-items:center; }
+.swatch { display:inline-block; width:26px; height:10px; background:var(--dna); border-radius:2px; }
+.swatch.parent { height:4px; background:var(--tmpl); }
+.swatch.rna { background:repeating-linear-gradient(135deg,transparent 0 5px,#ffffff80 5px 7px),var(--rna); }
+:focus-visible { outline:3px solid var(--focus); outline-offset:3px; }
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important; transition:none!important; scroll-behavior:auto!important; } }
+
+/* BISC 202 tool kit: layout shared by the step-by-step interactive tools.
+   Inlined after replication_shared/theme.css by tool_kit/build_tool.py. */
+:root { --gAA: var(--dna); --gAa: var(--target); --gaa: var(--rna); --hw: var(--muted); }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.5; }
+.wrap { max-width: 1060px; margin: 0 auto; padding-block: 16px 32px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 12px; min-width: 0; }
+.wrap > * { min-width: 0; }
+header { display: grid; gap: 4px; }
+h1 { font-size: 1.35rem; font-weight: 600; margin: 0; text-wrap: balance; }
+h2 { font-size: 1rem; margin: 0; }
+h3 { font-size: 0.95rem; margin: 0; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.steps { display: flex; flex-wrap: wrap; gap: 6px 4px; list-style: none; margin: 0; padding: 0; align-items: center; }
+.steps li { display: flex; align-items: center; gap: 6px; font-size: 0.88rem; color: var(--muted); }
+.steps li + li::before { content: ""; width: 22px; height: 1px; background: var(--line); margin-right: 4px; }
+.steps .dot { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-family: var(--font-mono); font-size: 0.75rem; }
+.steps li.now { color: var(--ink); font-weight: 600; }
+.steps li.now .dot { border-color: var(--accent); color: var(--accent); }
+.steps li.done .dot { background: var(--ok); border-color: var(--ok); color: var(--surface); }
+.brief { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px; }
+.brief p { margin: 0; max-width: 78ch; }
+.brief .q { font-weight: 600; }
+.brief .given { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+.task { background: var(--surface); border: 1px solid var(--accent); border-left: 4px solid var(--accent); border-radius: 8px; padding: 10px 12px; }
+.task p { margin: 0; max-width: 78ch; }
+.stage { display: grid; gap: 12px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 10px; min-width: 0; }
+.panel > p, .panel .note { margin: 0; max-width: 78ch; }
+.note { font-size: 0.85rem; color: var(--muted); }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+.btn { font: inherit; font-size: 0.9rem; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--dna-ink); font-weight: 600; }
+.btn[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.btn.small { font-size: 0.8rem; padding: 4px 9px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.spacer { flex: 1 1 auto; }
+.toolbar { position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px; background: var(--surface); border: 1px solid var(--accent); border-radius: 8px; }
+#btnCheck { min-width: 180px; }
+
+/* answers */
+.answer-options { display: grid; gap: 5px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.answer-options legend { font-size: 0.92rem; font-weight: 600; margin-bottom: 4px; padding: 0; max-width: 78ch; }
+.answer-options label { display: flex; gap: 9px; align-items: flex-start; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; font-size: 0.9rem; background: var(--surface); }
+.answer-options label:has(input:checked) { border-color: var(--accent); background: var(--slot); }
+.answer-options label.flag { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 8%, transparent); }
+.answer-options label.right { border-color: var(--ok); background: var(--ok-bg); }
+.answer-options input { flex-shrink: 0; margin-top: 4px; accent-color: var(--accent); }
+.answer-options.thumbs { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.answer-options.thumbs label { flex-direction: column; align-items: stretch; gap: 4px; }
+.answer-options.thumbs label svg { width: 100%; height: auto; display: block; }
+.answer-options.thumbs label .tl { display: flex; gap: 8px; align-items: center; }
+.answer-options.thumbs input { margin-top: 0; }
+.nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 8px 12px; }
+label.num { display: grid; gap: 3px; font-size: 0.85rem; }
+label.num span.lab { font-weight: 600; }
+label.num input { font: inherit; font-family: var(--font-mono); font-size: 0.95rem; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); width: 100%; min-width: 0; }
+label.num input:disabled { color: var(--ink); background: var(--slot); }
+label.num.flag input { border-color: var(--bad); box-shadow: 0 0 0 1px var(--bad); }
+label.num.right input { border-color: var(--ok); }
+label.num .hint { font-size: 0.75rem; color: var(--muted); }
+label.range { display: grid; gap: 2px; font-size: 0.85rem; }
+label.range .rl { display: flex; justify-content: space-between; gap: 8px; }
+label.range output { font-family: var(--font-mono); font-weight: 600; }
+label.range input { width: 100%; accent-color: var(--accent); }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+
+/* tables */
+.tablewrap { overflow-x: auto; }
+table.data { border-collapse: collapse; font-size: 0.9rem; min-width: 100%; }
+table.data th, table.data td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+table.data th { font-size: 0.78rem; color: var(--muted); font-weight: 600; background: var(--bg); }
+table.data th:first-child, table.data td:first-child { text-align: left; }
+table.data td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+table.data tr:last-child td { border-bottom: 0; }
+
+/* charts */
+svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.chart text { font-family: var(--font-body); font-size: 11px; fill: var(--muted); }
+.chart text.lbl { fill: var(--ink); font-size: 12px; }
+.chart text.big { fill: var(--ink); font-size: 13px; font-weight: 600; }
+.chart .axis { stroke: var(--line); stroke-width: 1; }
+.chart .grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 3; opacity: 0.7; }
+.chart .tick { stroke: var(--muted); }
+.chart .ln { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.chart .ln.thin { stroke-width: 1.2; opacity: 0.75; }
+.chart .ref { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 6 4; }
+.chart .hwbox { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.chart .cAA { fill: var(--gAA); stroke: var(--gAA); }
+.chart .cAa { fill: var(--gAa); stroke: var(--gAa); }
+.chart .caa { fill: var(--gaa); stroke: var(--gaa); }
+.chart .sAA { stroke: var(--gAA); }
+.chart .sAa { stroke: var(--gAa); }
+.chart .saa { stroke: var(--gaa); }
+.chart .sacc { stroke: var(--accent); }
+.chart .sink { stroke: var(--ink); }
+.chart .face { fill: var(--surface); }
+.chart .muted { fill: var(--muted); }
+.chart .shade { fill: var(--slot); }
+.chart .draw { stroke-dasharray: 2000; stroke-dashoffset: 2000; animation: kit-draw 1.6s ease-out forwards; }
+@keyframes kit-draw { to { stroke-dashoffset: 0; } }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.8rem; color: var(--muted); }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+.legend i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; }
+.legend i.line { height: 3px; }
+.legend i.dash { height: 0; border-top: 2px dashed var(--ink); background: none !important; }
+.readout { display: flex; flex-wrap: wrap; gap: 6px 16px; font-family: var(--font-mono); font-size: 0.85rem; }
+.readout b { font-weight: 600; }
+
+/* feedback */
+.feedback { display: grid; gap: 8px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 6px; }
+.card.bad { border-left-color: var(--bad); }
+.card.ok { border-left-color: var(--ok); }
+.card.win { border: 1px solid var(--ok); border-left: 4px solid var(--ok); background: var(--ok-bg); }
+.card.info { border-left-color: var(--warn); }
+.card h3 { font-size: 0.98rem; margin: 0; }
+.card p { margin: 0; max-width: 78ch; }
+.card .learn { font-size: 0.8rem; color: var(--muted); }
+.code { font-family: var(--font-mono); font-size: 1.05rem; letter-spacing: 0.06em; padding: 6px 10px; border: 1px dashed var(--accent); border-radius: 6px; user-select: all; -webkit-user-select: all; overflow-wrap: anywhere; }
+footer { font-size: 0.8rem; color: var(--muted); display: grid; gap: 2px; }
+footer p { margin: 0; max-width: 80ch; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 640px) {
+  h1 { font-size: 1.15rem; }
+  .toolbar .spacer { display: none; }
+  #btnCheck { flex: 1 1 100%; }
+  .panel { padding: 10px; }
+  .chart text { font-size: 13px; }
+}
+
+</style>
+<script>window.TOOL_CONFIG = {"mode": "practice"};</script>
+</head>
+<body>
+<script>
+/* BISC 202 tool kit: the step engine shared by the interactive tools.
+   Designed by Tegan Williams for BISC 202 at SFU.
+
+   A tool supplies two objects:
+     CORE (pure logic, no DOM, testable in Node):
+       { id, prefix, make(seed) -> case (case.variant: 0-35),
+         steps: [{ name, bits: {TAG: 1, ...}, judge(C, A) -> [{tag, note?, field?}], model(C, A), wrong(C, A) -> tag }],
+         cards: {TAG: {title, text, learn}}, anchors() -> [[name, got, want, tol]] }
+       Bits are numbered per step: at most 15 per step (3 base-36 characters), or 20 if CORE.codeWidth = 4.
+     UI (DOM):
+       { eyebrow, title, footer: [..], brief(C) -> {q, text, given},
+         steps: [{ task(C), render(root, C, A, ctx), reveal?(root, C, A, ctx), win(C, A) }],
+         done(root, C) }
+   Kit.run(CORE, UI) builds the page.
+   ctx: { solved, mode, change(), rerender(), flag(field) -> "flag" | "right" | "" , seed } */
+(function (root) {
+"use strict";
+const NS = "http://www.w3.org/2000/svg";
+
+/* ---------- numbers ---------- */
+function rng(seed) {
+  let a = seed >>> 0;
+  return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+function rtools(R) {
+  return {
+    ri: (a, b) => a + Math.floor(R() * (b - a + 1)),
+    rf: (a, b) => a + R() * (b - a),
+    pick: (arr) => arr[Math.floor(R() * arr.length)],
+    shuffle: (arr) => { const o = arr.slice(); for (let i = o.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [o[i], o[j]] = [o[j], o[i]]; } return o; },
+    binom: (n, p) => { let k = 0; for (let i = 0; i < n; i++) if (R() < p) k++; return k; },
+  };
+}
+/* Accepts 0.25, .25, 25%, 1/16, 1.4e-5, 1.4x10^-5, 1.4×10-5, 1.4×10⁻⁵, 1 in 40,
+   and arithmetic: 0.563^2, 0.563², 2*0.563*0.438, 2×0.4×0.6, 1-0.3, (0.2+0.1)/2, 2(0.3)(0.7).
+   Letters other than the x for "times" make it NaN. */
+const SUPS = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+function parseNum(s) {
+  if (s == null) return NaN;
+  let t = String(s).trim().toLowerCase().replace(/\s+/g, "").replace(/,/g, "").replace(/[−–]/g, "-")
+    .replace(/[⁻⁺]?[⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, (r) => "^(" + r.replace("⁻", "-").replace("⁺", "").replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]/g, (c) => SUPS.indexOf(c)) + ")");
+  if (!t) return NaN;
+  let m = t.match(/^1in(\d*\.?\d+)$/);
+  if (m) return 1 / parseFloat(m[1]);
+  let pct = false;
+  if (t.endsWith("%")) { pct = true; t = t.slice(0, -1); }
+  let v;
+  if ((m = t.match(/^([-+]?\d*\.?\d+)[x×*]10\^?\(?([-+]?\d+)\)?$/))) v = parseFloat(m[1]) * Math.pow(10, parseInt(m[2], 10));
+  else if ((m = t.match(/^([-+]?\d*\.?\d+)\/(\d*\.?\d+)$/))) v = parseFloat(m[1]) / parseFloat(m[2]);
+  else if (/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/.test(t)) v = parseFloat(t);
+  else v = calc(t);
+  return pct ? v / 100 : v;
+}
+/* A small arithmetic reader (no eval): + - * x × · / ^ and brackets; 2(0.3) multiplies. */
+function calc(t) {
+  const toks = t.match(/\d+\.?\d*(?:e[-+]?\d+)?|\.\d+(?:e[-+]?\d+)?|[-+*x×·/^()]/g);
+  if (!toks || toks.join("") !== t) return NaN;
+  let i = 0;
+  const peek = () => toks[i], take = () => toks[i++];
+  function expr() { let v = term(); while (peek() === "+" || peek() === "-") v = take() === "+" ? v + term() : v - term(); return v; }
+  function term() {
+    let v = unary();
+    for (;;) {
+      const o = peek();
+      if (o === "*" || o === "x" || o === "×" || o === "·") { take(); v *= unary(); }
+      else if (o === "/") { take(); v /= unary(); }
+      else if (o === "(") v *= unary();
+      else return v;
+    }
+  }
+  function unary() { if (peek() === "-") { take(); return -unary(); } if (peek() === "+") { take(); return unary(); } return power(); }
+  function power() { const b = atom(); if (peek() === "^") { take(); return Math.pow(b, unary()); } return b; }
+  function atom() {
+    const k = take();
+    if (k === "(") { const v = expr(); if (take() !== ")") throw 0; return v; }
+    if (k != null && /^[\d.]/.test(k)) return parseFloat(k);
+    throw 0;
+  }
+  try { const v = expr(); return i === toks.length && isFinite(v) ? v : NaN; } catch (e) { return NaN; }
+}
+/* True when an answer box holds letters (p, q, A, a …) rather than numbers. */
+function hasLetters(s) { return /[a-df-wyzᴬᵃ]/i.test(String(s == null ? "" : s)); }
+function near(v, target, tol) {
+  if (typeof v !== "number" || !isFinite(v)) return false;
+  const d = Math.abs(v - target);
+  return (tol.abs != null && d <= tol.abs + 1e-12) || (tol.rel != null && d <= Math.abs(target) * tol.rel + 1e-15);
+}
+function fmt(v, dp) { return Number(v).toFixed(dp); }
+function sig(v, n) {
+  if (v === 0) return "0";
+  const a = Math.abs(v);
+  if (a < 1e-3 || a >= 1e6) { const e = Math.floor(Math.log10(a)); const m = v / Math.pow(10, e); return Number(m.toPrecision(n)) + " × 10" + sup(e); }
+  return String(Number(v.toPrecision(n)));
+}
+function sup(e) { return String(e).replace(/-/g, "⁻").replace(/\d/g, (d) => "⁰¹²³⁴⁵⁶⁷⁸⁹"[d]); }
+function frac(v) { // 1/16 style when exact power of two
+  const n = Math.round(1 / v);
+  return Math.abs(1 / n - v) < 1e-9 ? "1/" + n : sig(v, 3);
+}
+
+function genTicks(G) { const st = G <= 10 ? (G <= 5 ? 1 : 2) : G <= 30 ? 10 : G <= 60 ? 20 : G <= 100 ? 25 : 50; const a = []; for (let v = 0; v <= G + 1e-9; v += st) a.push(v); return a; }
+
+/* ---------- DOM ---------- */
+function setAttrs(e, attrs) {
+  if (!attrs) return;
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k === "text") e.textContent = v;
+    else if (k.startsWith("on") && typeof v === "function") e.addEventListener(k.slice(2), v);
+    else if (k === "style" && typeof v === "object") Object.assign(e.style, v);
+    else e.setAttribute(k, v === true ? "" : v);
+  }
+}
+function append(e, kids) {
+  for (const k of kids.flat(Infinity)) if (k != null && k !== false) e.append(k.nodeType ? k : document.createTextNode(String(k)));
+  return e;
+}
+function el(tag, attrs, ...kids) { const e = document.createElement(tag); setAttrs(e, attrs); return append(e, kids); }
+function s(tag, attrs, ...kids) { const e = document.createElementNS(NS, tag); setAttrs(e, attrs); return append(e, kids); }
+function clear(e) { while (e.firstChild) e.removeChild(e.firstChild); return e; }
+function svg(w, h, label, cls, scale) { return s("svg", { viewBox: `0 0 ${w} ${h}`, class: "chart " + (cls || ""), role: "img", "aria-label": label, style: `max-width:${Math.round(w * (scale || 1.15))}px` }); }
+
+let uid = 0;
+/* Radio group. options: [{value, label (string or node)}]. marks: {value: "flag"|"right"} */
+function choice({ legend, options, value, onChange, disabled, marks, thumbs, name }) {
+  const nm = name || "c" + (++uid);
+  const fs = el("fieldset", { class: "answer-options" + (thumbs ? " thumbs" : "") });
+  if (legend) fs.append(el("legend", null, legend));
+  for (const o of options) {
+    const lab = el("label", { class: (marks && marks[o.value]) || "" });
+    const r = el("input", { type: "radio", name: nm, value: o.value });
+    r.checked = value === o.value; r.disabled = !!disabled;
+    r.addEventListener("change", () => onChange(o.value));
+    if (thumbs) lab.append(o.label, el("span", { class: "tl" }, r, o.caption || ""));
+    else lab.append(r, typeof o.label === "string" ? el("span", null, o.label) : o.label);
+    fs.append(lab);
+  }
+  return fs;
+}
+function number({ label, value, onInput, hint, disabled, mark, placeholder, aria, calc }) {
+  // calc: true gives phones a full keyboard so ^ * ( ) can be typed
+  const inp = el("input", { type: "text", inputmode: calc ? "text" : "decimal", autocomplete: "off", autocapitalize: "off", spellcheck: "false", placeholder: placeholder || "", "aria-label": aria || null });
+  inp.value = value == null ? "" : value; inp.disabled = !!disabled;
+  inp.addEventListener("input", () => onInput(inp.value));
+  return el("label", { class: "num " + (mark || "") }, el("span", { class: "lab" }, label), inp, hint ? el("span", { class: "hint" }, hint) : null);
+}
+function range({ label, min, max, step, value, onInput, format }) {
+  const out = el("output", null, format ? format(value) : value);
+  const inp = el("input", { type: "range", min, max, step, value });
+  inp.value = value;
+  inp.addEventListener("input", () => { const v = parseFloat(inp.value); out.textContent = format ? format(v) : v; onInput(v); });
+  return el("label", { class: "range" }, el("span", { class: "rl" }, el("span", null, label), out), inp);
+}
+function legend(items) { // [[cls or color, text, kind]]
+  return el("div", { class: "legend" }, items.map(([c, t, kind]) => {
+    const i = el("i", { class: kind || "" }); i.style.background = c.startsWith("var") || c.startsWith("#") ? c : `var(--${c})`;
+    return el("span", null, i, t);
+  }));
+}
+
+/* Axes. o = {x, y, w, h, xmin, xmax, ymin, ymax, xticks:[..], yticks:[..], xfmt, yfmt, xlabel, ylabel, ylog, grid} */
+function axes(g, o) {
+  const ly = (v) => Math.log10(Math.max(v, 1e-300));
+  const sx = (v) => o.x + (v - o.xmin) / (o.xmax - o.xmin) * o.w;
+  const sy = o.ylog ? (v) => o.y + o.h - (ly(v) - ly(o.ymin)) / (ly(o.ymax) - ly(o.ymin)) * o.h
+                    : (v) => o.y + o.h - (v - o.ymin) / (o.ymax - o.ymin) * o.h;
+  g.append(s("line", { class: "axis", x1: o.x, x2: o.x + o.w, y1: o.y + o.h, y2: o.y + o.h }));
+  g.append(s("line", { class: "axis", x1: o.x, x2: o.x, y1: o.y, y2: o.y + o.h }));
+  for (const t of o.xticks || []) {
+    g.append(s("line", { class: "tick", x1: sx(t), x2: sx(t), y1: o.y + o.h, y2: o.y + o.h + 4 }));
+    g.append(s("text", { x: sx(t), y: o.y + o.h + 16, "text-anchor": "middle" }, o.xfmt ? o.xfmt(t) : t));
+  }
+  for (const t of o.yticks || []) {
+    if (o.grid !== false) g.append(s("line", { class: "grid", x1: o.x, x2: o.x + o.w, y1: sy(t), y2: sy(t) }));
+    g.append(s("text", { x: o.x - 6, y: sy(t) + 4, "text-anchor": "end" }, o.yfmt ? o.yfmt(t) : t));
+  }
+  if (o.xlabel) g.append(s("text", { x: o.x + o.w / 2, y: o.y + o.h + 32, "text-anchor": "middle", class: "lbl" }, o.xlabel));
+  if (o.ylabel) g.append(s("text", { x: 12, y: o.y + o.h / 2, "text-anchor": "middle", class: "lbl", transform: `rotate(-90 12 ${o.y + o.h / 2})` }, o.ylabel));
+  return { sx, sy };
+}
+function path(pts, sc, attrs) {
+  const d = pts.map(([x, y], i) => (i ? "L" : "M") + sc.sx(x).toFixed(1) + " " + sc.sy(y).toFixed(1)).join(" ");
+  return s("path", Object.assign({ d }, attrs));
+}
+
+/* ---------- engine ---------- */
+function readConfig() {
+  const cfg = { mode: "practice" };
+  Object.assign(cfg, root.TOOL_CONFIG || {});
+  try { const q = new URLSearchParams(location.search); for (const k of ["mode", "seed"]) if (q.get(k)) cfg[k] = q.get(k); } catch (e) {}
+  if (cfg.mode !== "check") cfg.mode = "practice";
+  return cfg;
+}
+function b36(v, w) { return v.toString(36).toUpperCase().padStart(w, "0"); }
+function checksum(body) { let h = 7; for (const ch of body + "bisc202") h = (h * 31 + ch.charCodeAt(0)) % 1296; return b36(h, 2); }
+function resultCode(core, C, seed, first, flags) {
+  const body = [core.prefix + b36(C.variant || 0, 1) + b36(seed, 4), ...core.steps.map((_, i) => b36(first[i] || 0, core.codeWidth || 3)), b36(flags, 1)].join("-");
+  return body + "-" + checksum(body);
+}
+function mask(core, i, fs) { const b = core.steps[i].bits; return fs.reduce((m, f) => m | (b[f.tag] || 0), 0); }
+
+function run(core, ui) {
+  const CFG = readConfig();
+  const LEARN_DEFAULT = "";
+  document.title = ui.title;
+  const wrap = el("div", { class: "wrap" });
+  const H = {
+    eyebrow: el("span", { class: "eyebrow" }, ui.eyebrow),
+    h1: el("h1", null, ui.title),
+    steps: el("ol", { class: "steps", "aria-label": "Progress" }),
+    q: el("p", { class: "q" }), text: el("p"), given: el("p", { class: "given" }),
+    task: el("p", { id: "task" }),
+    stage: el("section", { class: "stage", id: "stage" }),
+    model: el("button", { class: "btn", id: "btnModel", hidden: true }, "Show a model answer for this step"),
+    newc: el("button", { class: "btn", id: "btnNew", title: "A new case with new numbers" }, ui.newLabel || "New case"),
+    reset: el("button", { class: "btn", id: "btnReset" }, "Start again"),
+    check: el("button", { class: "btn primary", id: "btnCheck" }, "Check"),
+    fb: el("section", { class: "feedback", id: "feedback", "aria-live": "polite" }),
+  };
+  wrap.append(
+    el("header", null, H.eyebrow, H.h1), H.steps,
+    el("section", { class: "brief" }, H.q, H.text, H.given),
+    el("section", { class: "task", "aria-live": "polite" }, H.task),
+    H.stage,
+    el("div", { class: "toolbar" }, H.model, el("span", { class: "spacer" }), H.newc, H.reset, H.check),
+    H.fb,
+    el("footer", null, (ui.footer || []).map((t) => el("p", null, t)), el("p", { class: "attribution" }, "Designed by Tegan Williams for BISC 202 at SFU")));
+  document.body.append(wrap);
+
+  let C, S;
+  const SESSION = { first: {}, flags: 0, seed: 0, usedFixed: false };
+  const fresh = () => ({ step: 0, done: false, solved: false, checks: 0, A: core.steps.map(() => ({})), marks: {} });
+
+  function newSeed() {
+    if (CFG.seed && !SESSION.usedFixed) { SESSION.usedFixed = true; const v = parseInt(CFG.seed, 36); if (v > 0) return v; }
+    let v = 0;
+    try { const a = new Uint32Array(1); crypto.getRandomValues(a); v = a[0]; } catch (e) { v = Math.floor(Math.random() * 4294967295); }
+    return (v % 1679000) + 1616;
+  }
+  function load(seed) { C = core.make(seed); SESSION.first = {}; SESSION.flags = 0; SESSION.seed = seed; S = fresh(); clear(H.fb); render(); }
+
+  const ctx = {
+    get solved() { return S.solved || S.done; }, get mode() { return CFG.mode; }, get seed() { return SESSION.seed; },
+    change() { if (S.solved) return; S.marks = {}; clear(H.fb); setCheckLabel(); },
+    rerender: () => render(),
+    flag: (field) => S.marks[field] || "",
+  };
+  function setCheckLabel() { H.check.textContent = (CFG.mode === "check" ? "Submit step " : "Check step ") + (S.step + 1); }
+
+  function render() {
+    clear(H.steps);
+    core.steps.forEach((st, i) => {
+      const done = S.done || i < S.step || (i === S.step && S.solved);
+      const li = el("li", { class: done ? "done" : i === S.step ? "now" : "" });
+      if (i === S.step && !S.done) li.setAttribute("aria-current", "step");
+      li.append(el("span", { class: "dot" }, done ? "✓" : String(i + 1)), el("span", null, st.name));
+      H.steps.append(li);
+    });
+    const b = ui.brief(C);
+    H.q.textContent = b.q || ""; H.text.textContent = b.text || ""; H.given.textContent = b.given || "";
+    H.text.hidden = !b.text; H.given.hidden = !b.given;
+    clear(H.stage);
+    if (S.done) {
+      H.task.textContent = CFG.mode === "check" ? "All steps are done. Copy your result code below." : "All steps are done. Explore below, or try a new case.";
+      ui.done(H.stage, C, ctx);
+    } else {
+      const u = ui.steps[S.step];
+      H.task.textContent = "Step " + (S.step + 1) + " of " + core.steps.length + ". " + u.task(C);
+      u.render(H.stage, C, S.A[S.step], ctx);
+      if (S.solved && u.reveal) u.reveal(H.stage, C, S.A[S.step], ctx);
+    }
+    if (S.solved) H.check.textContent = "Next: " + (core.steps[S.step + 1] ? core.steps[S.step + 1].name : "Finish") + " →";
+    else setCheckLabel();
+    H.check.hidden = S.done;
+    H.model.hidden = S.done || S.solved || CFG.mode === "check" || S.checks < 2;
+    H.newc.hidden = CFG.mode === "check" && Object.keys(SESSION.first).length > 0;
+  }
+
+  function card(c) {
+    const d = el("div", { class: "card " + (c.cls || "") });
+    d.append(el("h3", null, c.title));
+    if (c.text) d.append(el("p", null, c.text));
+    if (c.learn) d.append(el("p", { class: "learn" }, "Where to learn this: " + c.learn));
+    return d;
+  }
+
+  function runCheck() {
+    const st = core.steps[S.step];
+    const fs = st.judge(C, S.A[S.step]);
+    clear(H.fb);
+    const inc = fs.filter((f) => f.tag === "INC");
+    if (inc.length) {
+      H.fb.append(card({ cls: "info", title: "Not finished yet", text: inc.map((f) => f.note).filter(Boolean).join(" ") || "Part of this step is still empty." }));
+      S.marks = {}; for (const f of inc) if (f.field) S.marks[f.field] = "flag";
+      render(); return;
+    }
+    if (!(S.step in SESSION.first)) SESSION.first[S.step] = mask(core, S.step, fs);
+    S.checks++;
+    S.marks = {};
+    for (const f of fs) if (f.field) S.marks[f.field] = "flag";
+    if (!fs.length) { succeed(); return; }
+    render();
+    const seen = new Set();
+    for (const f of fs) {
+      const key = f.tag + "|" + (f.note || "");
+      if (seen.has(key)) continue; seen.add(key);
+      const c = core.cards[f.tag] || { title: f.tag, text: "" };
+      H.fb.append(card({ cls: "bad", title: c.title, text: (c.text || "") + (f.note ? " " + f.note : ""), learn: c.learn || LEARN_DEFAULT }));
+    }
+    if (CFG.mode === "practice" && S.checks >= 2) H.model.hidden = false;
+  }
+
+  function succeed() {
+    S.solved = true; S.marks = {};
+    render();
+    const u = ui.steps[S.step];
+    const d = card({ cls: "win", title: (u.winTitle && u.winTitle(C)) || "Right", text: u.win(C, S.A[S.step]) });
+    const last = S.step === core.steps.length - 1;
+    const b = el("button", { class: "btn primary" }, last ? "Finish" : "Continue to step " + (S.step + 2));
+    b.addEventListener("click", next);
+    d.append(el("div", { class: "row" }, b));
+    clear(H.fb); H.fb.append(d);
+    H.check.focus({ preventScroll: true });
+  }
+
+  function next() {
+    if (!S.solved) return;
+    clear(H.fb);
+    if (S.step === core.steps.length - 1) { finish(); return; }
+    S.step++; S.solved = false; S.checks = 0; S.marks = {};
+    render();
+    H.task.setAttribute("tabindex", "-1"); H.task.focus({ preventScroll: false });
+  }
+
+  function finish() {
+    S.done = true; S.solved = false;
+    render();
+    const d = card({ cls: "win", title: ui.doneTitle || "All steps done", text: ui.doneText ? ui.doneText(C) : "" });
+    if (CFG.mode === "check") {
+      d.append(el("p", null, "Copy this code into the quiz answer box:"));
+      const c = el("div", { class: "code", id: "resultCode" }, code());
+      const b = el("button", { class: "btn" }, "Copy code");
+      b.addEventListener("click", () => {
+        const fallback = () => { const r = document.createRange(); r.selectNodeContents(c); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); b.textContent = "Selected: press Ctrl+C or ⌘C"; };
+        try { navigator.clipboard.writeText(c.textContent).then(() => { b.textContent = "Copied"; }, fallback); } catch (e) { fallback(); }
+      });
+      d.append(c, el("div", { class: "row" }, b));
+    } else {
+      const b = el("button", { class: "btn primary" }, "Try a new case");
+      b.addEventListener("click", () => load(newSeed()));
+      d.append(el("div", { class: "row" }, b));
+    }
+    H.fb.append(d);
+  }
+  const code = () => resultCode(core, C, SESSION.seed, SESSION.first, SESSION.flags);
+
+  H.check.addEventListener("click", () => { if (S.solved) next(); else runCheck(); });
+  H.reset.addEventListener("click", () => { const f = SESSION.first; S = fresh(); SESSION.first = CFG.mode === "check" ? f : {}; clear(H.fb); render(); });
+  H.newc.addEventListener("click", () => {
+    if ((S.step > 0 || S.solved) && !S.done && !window.confirm("Start a new case? Your progress on this one will be cleared.")) return;
+    load(newSeed());
+  });
+  H.model.addEventListener("click", () => {
+    SESSION.flags |= 1;
+    core.steps[S.step].model(C, S.A[S.step]);
+    S.marks = {}; render(); clear(H.fb);
+    H.fb.append(card({ cls: "info", title: "A model answer for this step", text: "Compare it with yours, then press Check to continue." }));
+  });
+
+  root.__tool = {
+    core, get C() { return C; }, get S() { return S; }, get session() { return SESSION; },
+    load, check: runCheck, next, code, render,
+    model() { core.steps[S.step].model(C, S.A[S.step]); render(); },
+    wrong() { const st = core.steps[S.step], A = S.A[S.step]; st.model(C, A); const tag = st.wrong(C, A); render(); return tag; },
+  };
+  load(newSeed());
+}
+
+root.Kit = { genTicks, rng, rtools, parseNum, hasLetters, near, fmt, sig, sup, frac, el, s, clear, svg, choice, number, range, legend, axes, path, run, resultCode, checksum, NS };
+})(typeof window !== "undefined" ? window : globalThis);
+
+</script>
+<!-- Designed by Tegan Williams for BISC 202 at SFU. Please retain this attribution in copies. -->
+<!-- SOURCE TEMPLATE: edit this file, then run  python3 canvas/files/translation_explorer/assemble.py
+     (it inlines translation_builder/model.js and render.js so the page and the lecture figures share one model). -->
+<style>
+.trfig { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 4px; overflow-x: auto; overflow-y: hidden; }
+.trfig svg { display: block; width: 100%; height: auto; min-width: 640px; }
+.swipe { display: none; }
+@media (max-width: 720px) { .swipe { display: block; } }
+.mrna { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin: 6px 0 2px; }
+.mrna .end { font-weight: 700; color: var(--muted); padding: 0 4px; }
+.mrna button.b { width: 32px; height: 42px; padding: 0; font-family: var(--font-mono); font-size: 1.05rem; font-weight: 600; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); cursor: pointer; }
+.mrna button.b:hover:not(:disabled), .mrna button.b:focus-visible { border-color: #E0A100; box-shadow: 0 0 0 2px rgba(224,161,0,.45); outline: none; }
+.mrna button.b.sel { background: #F4D27A; border-color: #8a6a00; color: #102C42; }
+.mrna button.b.ok { background: #CFEBD9; border-color: #2b7a4b; color: #102C42; }
+.mrna button.b.flag { background: #F6C9CF; border-color: #b3261e; color: #5b0f1d; }
+.mrna button.b:disabled { cursor: default; }
+.codes { border-collapse: collapse; font-family: var(--font-mono); font-size: .78rem; width: 100%; }
+.codes th, .codes td { border: 1px solid var(--line); padding: 3px 6px; vertical-align: top; text-align: left; }
+.codes th { background: var(--slot); font-weight: 700; }
+.codes td div { white-space: nowrap; }
+.codes td div.stop { color: #CC0633; font-weight: 700; }
+details.codebox { margin: 4px 0; }
+details.codebox summary { cursor: pointer; font-weight: 600; }
+.brief .given { overflow-wrap: anywhere; }
+.panel > div { min-width: 0; }
+.stepbar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 4px 0; }
+.stepbar label { display: inline-flex; gap: 6px; align-items: center; font-weight: 600; font-size: .9rem; }
+.stepbar select { font: inherit; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.caption { margin: 0; padding: 8px 12px; border-left: 4px solid var(--accent); background: var(--slot); border-radius: 0 8px 8px 0; }
+@media (prefers-color-scheme:dark) { :root:not([data-theme="light"]) .mrna button.b.flag { background: #4a1a24; color: #ffd9de; } :root:not([data-theme="light"]) .mrna button.b.sel { color: #102C42; } }
+</style>
+<script>
+/* CORE START */
+/* inlined from translation_builder/model.js: do not edit here */
+/* Pure biological state; no screen coordinates. */
+(function (root) {
+'use strict';
+const aaNames={F:'Phe',L:'Leu',I:'Ile',M:'Met',V:'Val',S:'Ser',P:'Pro',T:'Thr',A:'Ala',Y:'Tyr','*':'Stop',H:'His',Q:'Gln',N:'Asn',K:'Lys',D:'Asp',E:'Glu',C:'Cys',W:'Trp',R:'Arg',G:'Gly'};
+const code={}; const bases='UCAG', letters='FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG';
+let n=0; for(const a of bases)for(const b of bases)for(const c of bases)code[a+b+c]=aaNames[letters[n++]];
+const phases={empty:'A site empty',bound:'Charged tRNA bound',transfer:'Peptide transferred',moved:'After translocation',stop:'Release factor bound',released:'Peptide released',early:'Start-site inspection',late:'Subunit joining',joined:'Initiation complete'};
+const defaultState=()=>({sequence:'CCAAUGGCUUUCCAAGGAAACACUGAUUGGUAAGC',start:4,p:2,phase:'bound',system:'euk',rnaDir:1,ribDir:1,largeDir:1,vertical:1,sites:true,anticodons:true,polarity:true,motion:true,subunitLabels:true,numbers:true,product:false,known:3,hidden:[],offsets:{},mono:false,theme:'builder',fmet:true,omit:[],shift:0});
+function parse(sequence,start){
+ const seq=String(sequence).replace(/\s/g,'').toUpperCase();
+ if(!/^[ACGU]+$/.test(seq))throw Error('Use RNA bases A, C, G and U only, entered 5′ → 3′.');
+ if(seq.length>126)throw Error('Use at most 126 bases (up to 40 coding codons plus flanking bases).');
+ if(!Number.isInteger(start)||start<1||start>seq.length-2)throw Error('Choose the base number of the A in the start AUG.');
+ if(seq.slice(start-1,start+2)!=='AUG')throw Error('The selected start must be AUG.');
+ const codons=[];for(let i=start-1;i+2<seq.length;i+=3)codons.push(seq.slice(i,i+3));
+ if(codons.length>40)throw Error('Use at most 40 codons after the selected start.');
+ const stop=codons.findIndex(c=>code[c]==='Stop'), sense=stop<0?codons.length:stop;
+ return {seq,codons,stop,sense,peptide:codons.slice(0,sense).map(c=>code[c])};
+}
+function validate(s){
+ const d=parse(s.sequence,s.start);
+ if(!phases[s.phase])throw Error('Unknown translation state.');
+ if(!['euk','bacterial'].includes(s.system))throw Error('Unknown translation system.');
+ if(![s.rnaDir,s.ribDir,s.largeDir,s.vertical].every(v=>v===1||v===-1))throw Error('Orientation must be +1 or −1.');
+ if(!Number.isInteger(s.p)||s.p<0||s.p>=d.sense)throw Error('P-site codon must be a sense codon before the first stop.');
+ if(['bound','transfer'].includes(s.phase)&&(s.p+1>=d.sense))throw Error('A sense codon is required in A for a charged tRNA.');
+ if(['stop','released'].includes(s.phase)&&d.stop!==s.p+1)throw Error('Place the first stop codon in A for termination.');
+ if(['early','late','joined'].includes(s.phase)&&s.p!==0)throw Error('Initiation places the selected AUG in P.');
+ if(['early','late'].includes(s.phase)&&s.system!=='euk')throw Error('The initiation-factor views use eukaryotic factors.');
+ if(!Number.isInteger(s.known)||s.known<0||s.known>40)throw Error('Known peptide residues must be between 0 and 40.');
+ if(!Array.isArray(s.omit===undefined?[]:s.omit))throw Error('omit must be a list of object IDs.');
+ if(!Number.isFinite(s.shift===undefined?0:s.shift)||Math.abs(s.shift||0)>1500)throw Error('shift must be a number of SVG units.');
+ if(!['builder','course'].includes(s.theme===undefined?'builder':s.theme))throw Error('Unknown colour theme.');
+ for(const k of ['sites','anticodons','polarity','motion','subunitLabels','numbers','product','mono','fmet'])if(typeof s[k]!=='boolean')throw Error('Invalid display setting.');
+ if(!Array.isArray(s.hidden)||s.hidden.some(x=>typeof x!=='string'))throw Error('Invalid hidden-object list.');
+ for(const value of Object.values(s.offsets||{}))if(!Array.isArray(value)||value.length!==2||!value.every(v=>Number.isFinite(v)&&Math.abs(v)<=1000))throw Error('Invalid object position.');
+ return d;
+}
+/* fmet:false labels the bacterial initiator 'Met' (BISC 202 convention, 11 Nov 2026). */
+function peptide(s,d){const a=d.peptide.slice();if(s.system==='bacterial'&&s.fmet!==false&&a.length)a[0]='fMet';return a;}
+function occupancy(s){
+ const d=validate(s), a=peptide(s,d), init=['early','late','joined'].includes(s.phase);
+ let count=s.p+1+(s.phase==='transfer'?1:0);
+ const o={E:null,P:{codon:s.p,chain:a.slice(0,count)},A:null,factors:[],chain:a.slice(0,count),released:false};
+ if(s.phase==='moved'&&s.p>0)o.E={codon:s.p-1,chain:[]};
+ if(s.phase==='bound')o.A={codon:s.p+1,chain:[a[s.p+1]]};
+ if(s.phase==='transfer'){o.P.chain=[];o.A={codon:s.p+1,chain:a.slice(0,count)};}
+ if(s.phase==='stop')o.A={releaseFactor:true};
+ if(s.phase==='released'){o.released=true;o.P.chain=[];o.A={releaseFactor:true};}
+ if(s.phase==='early')o.factors=['eIF1','eIF1A','eIF2–GTP','eIF3'];
+ if(s.phase==='late')o.factors=['eIF1A','eIF5B–GTP'];
+ o.large=!['early','late'].includes(s.phase);o.init=init;
+ return o;
+}
+function next(s){
+ validate(s);if((s.ribDir!==s.rnaDir||s.largeDir!==s.ribDir))throw Error('Align the ribosome and mRNA before advancing a biological state.');
+ const d=parse(s.sequence,s.start), t=JSON.parse(JSON.stringify(s)); t.offsets={};
+ if(s.phase==='early')t.phase='late';
+ else if(s.phase==='late')t.phase='joined';
+ else if(['empty','moved','joined'].includes(s.phase)){
+  if(d.stop===s.p+1)t.phase='stop';
+  else if(s.p+1<d.sense)t.phase='bound';
+  else throw Error('The printed sequence ends here. Add more sequence to continue.');
+ }else if(s.phase==='bound')t.phase='transfer';
+ else if(s.phase==='transfer'){t.p++;t.phase='moved';}
+ else if(s.phase==='stop')t.phase='released';
+ else throw Error('The peptide has been released.');
+ validate(t);return t;
+}
+function anticodon(codon){return codon.split('').map(b=>({A:'U',U:'A',C:'G',G:'C'}[b])).join('');}
+function load(raw){const s=defaultState();for(const key of Object.keys(s))if(Object.prototype.hasOwnProperty.call(raw,key))s[key]=raw[key];validate(s);return s;}
+root.TranslationModel={code,phases,defaultState,parse,validate,occupancy,next,anticodon,peptide,load};
+})(typeof globalThis==='object'?globalThis:this);
+
+const CORE = (() => {
+const K = Kit;
+const M = globalThis.TranslationModel;
+const LEARN_START = "Week 11 Tuesday lecture, Initiation steps 1–6 · Klug §14.2 (Shine–Dalgarno sequence) and §14.4 (cap and scanning)";
+const LEARN_TRNA = "Week 11 Tuesday lecture, Elongation and the tRNA slides · Klug §14.2 (codon–anticodon pairing)";
+const LEARN_PEP = "Week 11 Tuesday lecture, Elongation: peptide bond and translocation · Klug §14.2";
+const LEARN_STOP = "Week 11 Tuesday lecture, Termination · Klug §14.2 (release factors)";
+const BASES = "ACGU";
+const comp = (c) => M.anticodon(c);
+const SENSE = Object.keys(M.code).filter((c) => M.code[c] !== "Stop");
+const STOPS = ["UAA", "UAG", "UGA"];
+const AAS = [...new Set(SENSE.map((c) => M.code[c]))];
+const dash = (a) => a.join("–");
+const rev = (s) => s.split("").reverse().join("");
+
+/* All 1-based positions where an AUG starts. */
+function augs(seq) { const o = []; for (let i = 0; i + 2 < seq.length; i++) if (seq.substr(i, 3) === "AUG") o.push(i + 1); return o; }
+
+/* Options are built once, in make(), from the seeded generator, so a seed always gives the same page.
+   Each option is {value, tag}; tag "OK" is the right one. */
+function uniq(list, n) { const seen = new Set(), o = []; for (const [v, t] of list) if (v && !seen.has(v)) { seen.add(v); o.push({ value: v, tag: t }); if (o.length === n) break; } return o; }
+function antiOptions(codons, k, T, R) {
+  const a = codons[k + 1], right = comp(a);
+  const list = [[right, "OK"], [a, "ANTI_SAME"], [rev(right), "ANTI_REV"], [comp(codons[k]), "ANTI_PSITE"], [comp(codons[k + 2] || "GGG"), "ANTI_OTHER"]];
+  for (let i = 0; i < 12; i++) { let s = ""; for (let j = 0; j < 3; j++) s += BASES[Math.floor(R() * 4)]; list.push([s, "ANTI_OTHER"]); }
+  return T.shuffle(uniq(list, 4));
+}
+function aaOptions(codons, k, T) {
+  const a = codons[k + 1], right = M.code[a];
+  const list = [[right, "OK"], [M.code[codons[k]], "AA_PSITE"], [M.code[comp(a)], "AA_ANTI"]].map(([v, t]) => [v === "Stop" ? "" : v, t]);
+  for (const aa of T.shuffle(AAS)) list.push([aa, "AA_OTHER"]);
+  return T.shuffle(uniq(list, 4));
+}
+function make(seed) {
+  const R = K.rng(seed), T = K.rtools(R);
+  const rb = (n) => { let s; do { s = ""; for (let i = 0; i < n; i++) s += BASES[Math.floor(R() * 4)]; } while (s.includes("AUG") || s.includes("GGAGG") || s.includes("AGGAG")); return s; };   // no second Shine–Dalgarno-like run
+  const bact = T.pick([false, true]);
+  let leader, decoy = false;
+  if (bact) {
+    decoy = T.pick([false, true]);
+    let head;
+    do head = decoy ? rb(T.ri(2, 4)) + "AUG" + rb(T.ri(2, 3)) : rb(T.ri(4, 8)); while ((head + "AGGAGG").indexOf("AGGAGG") !== head.length);   // one Shine–Dalgarno sequence only
+    leader = head + "AGGAGG" + rb(T.ri(5, 7));
+  } else leader = rb(T.ri(8, 14));
+  const n = T.ri(4, 6);
+  let coding = "AUG";
+  for (let i = 0; i < n; i++) coding += T.pick(SENSE);
+  const stopCodon = T.pick(STOPS), trailer = T.pick(SENSE) + T.pick(SENSE);
+  const seq = leader + coding + stopCodon + trailer, start = leader.length + 1;
+  const d = M.parse(seq, start);
+  const k = T.ri(1, d.sense - 2), k2 = T.ri(1, d.sense - 2);
+  const pepStr = dash(d.peptide);
+  const tx = T.shuffle([
+    { value: "The growing chain is moved from the tRNA in the P site onto the amino acid carried by the tRNA in the A site.", tag: "OK" },
+    { value: "The amino acid on the A-site tRNA is joined to the end of the chain, and the chain stays on the P-site tRNA.", tag: "TX_STAYS" },
+    { value: "The P-site tRNA leaves the ribosome with the chain still attached, and the A-site tRNA then adds its amino acid to it.", tag: "TX_RELEASE" },
+    { value: "The chain is released into the cytoplasm, and the A-site amino acid is added to the free chain.", tag: "TX_FREE" },
+  ]);
+  const pos = T.shuffle([
+    { value: `Codon ${k2 + 2} is now in the P site and codon ${k2 + 3} is in the A site.`, tag: "OK" },
+    { value: `Codon ${k2 + 1} is still in the P site and codon ${k2 + 2} is still in the A site.`, tag: "TL_STAY" },
+    { value: `Codon ${k2} is now in the P site and codon ${k2 + 1} is in the A site.`, tag: "TL_BACK" },
+  ]);
+  const rf = T.shuffle([
+    { value: "A release factor binds the stop codon in the A site.", tag: "OK" },
+    { value: "A tRNA with the anticodon that pairs with the stop codon binds in the A site.", tag: "RF_TRNA" },
+    { value: "A tRNA carrying the amino acid “Stop” binds in the A site.", tag: "RF_STOPTRNA" },
+    { value: "Nothing binds the A site: the ribosome simply slides off the mRNA.", tag: "RF_NONE" },
+  ]);
+  const pep = T.shuffle([
+    { value: pepStr, tag: "OK" },
+    { value: pepStr + "–Stop", tag: "PEP_STOP" },
+    { value: dash(d.peptide.slice(1)), tag: "PEP_NOMET" },
+    { value: pepStr + "–" + M.code[d.codons[d.sense + 1]] + "–" + M.code[d.codons[d.sense + 2]], tag: "PEP_THROUGH" },
+  ]);
+  return { variant: (bact ? 1 : 0) + 2 * (decoy ? 1 : 0) + 4 * (k - 1), bact, decoy, seq, start, k, k2, sense: d.sense, stopCodon, codons: d.codons, peptide: d.peptide,
+    first: augs(seq)[0], opt2: { anti: antiOptions(d.codons, k, T, R), aa: aaOptions(d.codons, k, T) }, opt3: { tx, pos }, opt4: { rf, pep } };
+}
+const right = (opts) => opts.find((o) => o.tag === "OK").value;
+const tagOf = (opts, v) => { const o = opts.find((x) => x.value === v); return o ? o.tag : "INC"; };
+const byTag = (opts, t) => opts.find((o) => o.tag === t);
+
+function twoQ(fieldA, fieldB, optsA, optsB, textMiss) {
+  return (C, A) => {
+    const O = [optsA(C), optsB(C)], F = [fieldA, fieldB], miss = [];
+    F.forEach((f, i) => { if (!A[f]) miss.push({ tag: "INC", field: f, note: textMiss }); });
+    if (miss.length) return miss;
+    const fs = [];
+    F.forEach((f, i) => { const t = tagOf(O[i], A[f]); if (t !== "OK") fs.push({ tag: t, field: f }); });
+    return fs;
+  };
+}
+const steps = [
+  { name: "Find the start",
+    bits: { START_NOAUG: 1, START_FIRST: 2, START_SD: 4 },
+    judge(C, A) {
+      if (!A.pick) return [{ tag: "INC", field: "pick", note: "Click the base where translation starts." }];
+      if (A.pick >= C.start && A.pick <= C.start + 2) return [];
+      const hit = augs(C.seq).some((a) => A.pick >= a && A.pick <= a + 2);
+      if (!hit) return [{ tag: "START_NOAUG", field: "pick" }];
+      return [{ tag: C.bact ? "START_SD" : "START_FIRST", field: "pick" }];
+    },
+    model(C, A) { A.pick = C.start; },
+    wrong(C, A) { A.pick = 1; return "START_NOAUG"; } },
+  { name: "Add the next tRNA",
+    bits: { ANTI_SAME: 1, ANTI_REV: 2, ANTI_PSITE: 4, ANTI_OTHER: 8, AA_PSITE: 16, AA_ANTI: 32, AA_OTHER: 64 },
+    judge: twoQ("anti", "aa", (C) => C.opt2.anti, (C) => C.opt2.aa, "Answer both questions."),
+    model(C, A) { A.anti = right(C.opt2.anti); A.aa = right(C.opt2.aa); },
+    wrong(C, A) { A.anti = byTag(C.opt2.anti, "ANTI_SAME").value; return "ANTI_SAME"; } },
+  { name: "Bond and move",
+    bits: { TX_STAYS: 1, TX_RELEASE: 2, TX_FREE: 4, TL_STAY: 8, TL_BACK: 16 },
+    judge: twoQ("tx", "pos", (C) => C.opt3.tx, (C) => C.opt3.pos, "Answer both questions."),
+    model(C, A) { A.tx = right(C.opt3.tx); A.pos = right(C.opt3.pos); },
+    wrong(C, A) { A.pos = byTag(C.opt3.pos, "TL_STAY").value; return "TL_STAY"; } },
+  { name: "Stop and release",
+    bits: { RF_TRNA: 1, RF_STOPTRNA: 2, RF_NONE: 4, PEP_STOP: 8, PEP_NOMET: 16, PEP_THROUGH: 32 },
+    judge: twoQ("rf", "pep", (C) => C.opt4.rf, (C) => C.opt4.pep, "Answer both questions."),
+    model(C, A) { A.rf = right(C.opt4.rf); A.pep = right(C.opt4.pep); },
+    wrong(C, A) { A.rf = byTag(C.opt4.rf, "RF_TRNA").value; return "RF_TRNA"; } },
+];
+
+const cards = {
+  START_NOAUG: { title: "Translation starts at an AUG", text: "The start codon is AUG, which codes for Met. The base you clicked is not part of an AUG that the ribosome would start on.", learn: LEARN_START },
+  START_FIRST: { title: "A eukaryotic ribosome starts at the first AUG", text: "In a eukaryote the small subunit and the initiator tRNA attach at the 5′ cap and scan along the mRNA. Translation starts at the first AUG it reaches, so a later AUG is not the start.", learn: LEARN_START },
+  START_SD: { title: "A bacterial ribosome is placed by the Shine–Dalgarno sequence", text: "A bacterial small subunit does not scan from the 5′ end. Its rRNA pairs with the Shine–Dalgarno sequence (AGGAGG), which puts the AUG a few bases downstream in the P site. An AUG elsewhere is not the start.", learn: LEARN_START },
+  ANTI_SAME: { title: "The anticodon is complementary to the codon, not the same", text: "The anticodon pairs with the codon by base pairing (A with U, G with C), so it is the complement of the codon, not a copy of it.", learn: LEARN_TRNA },
+  ANTI_REV: { title: "Check the direction of the pairing", text: "The strands pair antiparallel. Written 3′ → 5′ under a codon read 5′ → 3′, the anticodon is the base-by-base complement of the codon, in the same left-to-right order.", learn: LEARN_TRNA },
+  ANTI_PSITE: { title: "That anticodon belongs to the P site", text: "The tRNA you chose pairs with the codon in the P site, which is already filled. The A site holds the next codon along.", learn: LEARN_TRNA },
+  ANTI_OTHER: { title: "That anticodon does not pair with the A-site codon", text: "Pair each base of the A-site codon with its complement: A with U and G with C.", learn: LEARN_TRNA },
+  AA_PSITE: { title: "That is the amino acid already in the chain", text: "The amino acid for the A-site codon comes from the genetic code table for that codon, not from the P-site codon.", learn: LEARN_TRNA },
+  AA_ANTI: { title: "Read the codon, not the anticodon", text: "The genetic code table lists mRNA codons. Look up the codon in the A site, not the anticodon of the tRNA.", learn: LEARN_TRNA },
+  AA_OTHER: { title: "Use the genetic code table", text: "Find the A-site codon in the table. The tRNA that pairs with it carries that codon's amino acid.", learn: LEARN_TRNA },
+  TX_STAYS: { title: "The chain moves to the A-site tRNA", text: "In the peptide bond step the chain is transferred from the P-site tRNA to the amino acid on the A-site tRNA. Afterwards the P-site tRNA is empty and the chain hangs from the A-site tRNA.", learn: LEARN_PEP },
+  TX_RELEASE: { title: "The chain does not leave with the P-site tRNA", text: "The chain is passed onto the A-site tRNA while both tRNAs are in the ribosome. The P-site tRNA is left empty and moves on to the E site later.", learn: LEARN_PEP },
+  TX_FREE: { title: "The chain is never free during elongation", text: "During elongation the chain is always attached to a tRNA. It is passed from the P-site tRNA to the A-site tRNA. It is released only at termination.", learn: LEARN_PEP },
+  TL_STAY: { title: "Translocation moves the ribosome one codon", text: "After the peptide bond forms, the ribosome moves one codon toward the 3′ end of the mRNA. The codon that was in the A site is now in the P site.", learn: LEARN_PEP },
+  TL_BACK: { title: "The ribosome moves toward the 3′ end", text: "Translation runs 5′ → 3′ along the mRNA, so translocation moves the ribosome forward to the next codon, never back.", learn: LEARN_PEP },
+  RF_TRNA: { title: "No tRNA pairs with a stop codon", text: "The stop codons UAA, UAG and UGA are recognised by a release factor, not by a tRNA.", learn: LEARN_STOP },
+  RF_STOPTRNA: { title: "Stop is not an amino acid", text: "A stop codon does not code for an amino acid, and no tRNA carries one for it. A release factor binds the A site instead.", learn: LEARN_STOP },
+  RF_NONE: { title: "Something does bind the A site", text: "A release factor binds the stop codon in the A site. It triggers release of the finished chain from the last tRNA.", learn: LEARN_STOP },
+  PEP_STOP: { title: "Stop is not added to the chain", text: "The stop codon ends translation. It does not add an amino acid, so the finished chain has one amino acid for each sense codon from the start codon up to the stop codon.", learn: LEARN_STOP },
+  PEP_NOMET: { title: "The chain begins with the start codon's Met", text: "The AUG start codon is translated, so the first residue is Met. The chain is read from the start codon to the stop codon.", learn: LEARN_STOP },
+  PEP_THROUGH: { title: "Translation stops at the first stop codon in the frame", text: "Bases after the stop codon are not translated into this chain, even though they are still part of the mRNA.", learn: LEARN_STOP },
+};
+
+function anchors() { // standard genetic code (Klug Figure 13.7 / Table 13.x), tRNA pairing, and the lecture's example mRNA
+  const d = M.parse("AGGAGGUAACCAUGGCUUUCCAAUAAGCAUC", 12);
+  return [
+    ["AUG is Met", M.code.AUG, "Met"], ["UGG is Trp", M.code.UGG, "Trp"], ["UUU is Phe", M.code.UUU, "Phe"], ["GCU is Ala", M.code.GCU, "Ala"],
+    ["UAA is Stop", M.code.UAA, "Stop"], ["UAG is Stop", M.code.UAG, "Stop"], ["UGA is Stop", M.code.UGA, "Stop"],
+    ["61 sense codons", SENSE.length, 61, 0],
+    ["anticodon of GCU is CGA (slide 14)", comp("GCU"), "CGA"],
+    ["lecture mRNA peptide (slides 9–10)", dash(d.peptide), "Met–Ala–Phe–Gln"],
+    ["lecture mRNA has one stop, at codon 5", d.stop, 4, 0],
+  ];
+}
+return { id: "translation_explorer", prefix: "B", make, steps, cards, anchors, augs, right, tagOf, comp, dash, SENSE };
+})();
+/* CORE END */
+/* inlined from translation_builder/render.js: do not edit here */
+/* Original reusable SVG shapes. Coordinates are a teaching cutaway, not an atomic map. */
+(function(root){
+'use strict';
+const M=root.TranslationModel;
+const shapes={
+ large:'M -225 -55 C -250 -105 -240 -180 -208 -203 L -247 -231 Q -263 -249 -246 -264 Q -231 -275 -214 -254 L -180 -226 C -155 -264 -106 -281 -65 -268 C -60 -310 -13 -329 15 -304 L 38 -279 C 72 -293 99 -277 114 -251 L 145 -256 Q 175 -259 184 -231 C 231 -218 258 -175 244 -132 Q 270 -101 237 -64 L 195 -42 Q 161 -28 137 -54 L 110 -78 Q 58 -99 12 -79 Q -27 -63 -75 -86 Q -125 -99 -164 -62 Q -194 -34 -225 -55 Z',
+ small:'M -240 46 Q -254 17 -225 2 L -173 2 Q -152 5 -142 27 L -105 37 Q -71 47 -38 36 L 10 21 Q 36 10 69 18 L 103 25 Q 133 -8 180 -9 Q 215 -9 224 10 L 254 22 Q 266 34 246 46 L 220 51 Q 213 86 184 97 L 145 105 Q 145 144 112 158 L 70 161 Q 34 187 0 170 L -40 160 Q -93 181 -124 157 Q -176 159 -198 126 Q -231 100 -219 75 Z',
+ trna:'M 8 -178 L 8 -146 Q 41 -151 44 -128 Q 46 -109 16 -110 L 16 -82 Q 44 -80 43 -58 Q 41 -43 20 -47 L 9 -36 Q 0 -25 -9 -36 L -20 -47 Q -43 -43 -43 -62 Q -42 -80 -16 -82 L -16 -110 Q -44 -109 -44 -128 Q -42 -151 -8 -146 L -8 -178 Z',
+ eIF1:'M -29 -12 Q -12 -33 9 -23 Q 36 -17 27 8 Q 24 28 -2 24 Q -36 23 -29 -12 Z',
+ eIF1A:'M -35 -10 Q -29 -34 -2 -28 L 23 -18 Q 40 -10 32 12 L 18 29 Q -3 38 -20 22 Q -42 18 -35 -10 Z',
+ 'eIF2–GTP':'M -48 -22 Q -66 -51 -35 -63 Q -10 -72 1 -42 Q 36 -57 54 -35 Q 71 -9 44 7 L 24 16 Q 30 41 8 50 Q -17 58 -28 29 Q -60 26 -48 -22 Z',
+ eIF3:'M -88 -8 Q -100 -36 -68 -45 L -34 -37 Q -14 -63 13 -37 L 47 -45 Q 80 -47 90 -22 L 78 8 Q 95 31 67 39 L 34 27 Q 6 53 -18 31 L -54 38 Q -88 34 -88 -8 Z',
+ 'eIF5B–GTP':'M -40 55 Q -68 35 -42 10 L -31 -15 Q -52 -37 -27 -52 Q -6 -62 7 -39 L 39 -47 Q 61 -44 55 -21 L 27 -6 L 24 17 Q 58 28 39 49 Q 20 63 3 45 L -11 66 Q -28 76 -40 55 Z',
+ rf:'M -28 -30 L -28 -113 Q -47 -138 -23 -154 Q -8 -167 7 -148 L 26 -161 Q 47 -154 34 -128 L 24 -104 L 24 -31 Q 0 -14 -28 -30 Z'
+};
+/* TRNA-GEOMETRY:BEGIN (generated by canvas/files/trna_kit/trna_svg.py js; do not edit by hand) */
+const TRNA_GEOMETRY={"armK":0.5,"backbone":"M0.85 -16.27 C0.85 -16.10 0.85 -15.60 0.85 -15.27 C0.85 -14.93 0.85 -14.60 0.85 -14.27 C0.85 -13.93 0.85 -13.60 0.85 -13.27 C0.85 -12.93 0.85 -12.60 0.85 -12.27 C0.85 -11.93 0.85 -11.60 0.85 -11.27 C0.85 -10.93 0.75 -10.43 0.85 -10.27 C0.95 -10.10 1.29 -10.33 1.44 -10.29 C1.58 -10.24 1.68 -10.15 1.72 -10.00 C1.76 -9.86 1.62 -9.51 1.70 -9.42 C1.78 -9.32 2.03 -9.42 2.20 -9.42 C2.37 -9.42 2.53 -9.42 2.70 -9.42 C2.87 -9.42 3.04 -9.39 3.20 -9.42 C3.36 -9.45 3.50 -9.57 3.66 -9.59 C3.82 -9.61 4.00 -9.59 4.15 -9.53 C4.30 -9.48 4.46 -9.37 4.56 -9.25 C4.67 -9.13 4.75 -8.97 4.79 -8.81 C4.83 -8.66 4.83 -8.47 4.79 -8.32 C4.75 -8.16 4.67 -8.00 4.56 -7.88 C4.46 -7.76 4.30 -7.66 4.15 -7.60 C4.00 -7.54 3.82 -7.52 3.66 -7.54 C3.50 -7.56 3.36 -7.69 3.20 -7.72 C3.04 -7.75 2.87 -7.72 2.70 -7.72 C2.53 -7.72 2.37 -7.72 2.20 -7.72 C2.03 -7.72 1.80 -7.85 1.70 -7.72 C1.60 -7.59 1.77 -7.08 1.62 -6.94 C1.48 -6.80 0.98 -7.05 0.85 -6.87 C0.72 -6.69 0.85 -6.20 0.85 -5.87 C0.85 -5.53 0.85 -5.20 0.85 -4.87 C0.85 -4.53 0.85 -4.20 0.85 -3.87 C0.85 -3.53 0.75 -3.16 0.85 -2.87 C0.95 -2.57 1.36 -2.39 1.46 -2.10 C1.57 -1.81 1.58 -1.41 1.50 -1.12 C1.41 -0.82 1.18 -0.50 0.93 -0.31 C0.68 -0.12 0.31 0.00 -0.00 0.00 C-0.31 0.00 -0.68 -0.12 -0.93 -0.31 C-1.18 -0.50 -1.41 -0.82 -1.50 -1.12 C-1.58 -1.41 -1.57 -1.81 -1.46 -2.10 C-1.36 -2.39 -0.95 -2.57 -0.85 -2.87 C-0.75 -3.16 -0.85 -3.53 -0.85 -3.87 C-0.85 -4.20 -0.85 -4.53 -0.85 -4.87 C-0.85 -5.20 -0.85 -5.53 -0.85 -5.87 C-0.85 -6.20 -0.71 -6.96 -0.85 -6.87 C-0.99 -6.77 -1.40 -5.62 -1.67 -5.28 C-1.95 -4.94 -2.23 -4.83 -2.52 -4.80 C-2.81 -4.78 -3.22 -4.93 -3.43 -5.14 C-3.63 -5.35 -3.79 -5.76 -3.76 -6.05 C-3.74 -6.34 -3.63 -6.62 -3.29 -6.89 C-2.94 -7.17 -1.88 -7.58 -1.70 -7.72 C-1.52 -7.85 -2.03 -7.72 -2.20 -7.72 C-2.37 -7.72 -2.53 -7.72 -2.70 -7.72 C-2.87 -7.72 -3.03 -7.72 -3.20 -7.72 C-3.37 -7.72 -3.54 -7.74 -3.70 -7.72 C-3.86 -7.70 -4.02 -7.60 -4.18 -7.60 C-4.34 -7.60 -4.52 -7.65 -4.66 -7.74 C-4.79 -7.82 -4.92 -7.95 -5.00 -8.09 C-5.08 -8.23 -5.13 -8.41 -5.13 -8.57 C-5.13 -8.73 -5.08 -8.91 -5.00 -9.04 C-4.92 -9.18 -4.79 -9.32 -4.66 -9.40 C-4.52 -9.48 -4.34 -9.53 -4.18 -9.53 C-4.02 -9.54 -3.86 -9.44 -3.70 -9.42 C-3.54 -9.40 -3.37 -9.42 -3.20 -9.42 C-3.03 -9.42 -2.87 -9.42 -2.70 -9.42 C-2.53 -9.42 -2.37 -9.42 -2.20 -9.42 C-2.03 -9.42 -1.93 -9.28 -1.70 -9.42 C-1.48 -9.56 -0.99 -9.96 -0.85 -10.27 C-0.71 -10.58 -0.85 -10.93 -0.85 -11.27 C-0.85 -11.60 -0.85 -11.93 -0.85 -12.27 C-0.85 -12.60 -0.85 -12.93 -0.85 -13.27 C-0.85 -13.60 -0.85 -13.93 -0.85 -14.27 C-0.85 -14.60 -0.85 -14.93 -0.85 -15.27 C-0.85 -15.60 -0.85 -15.93 -0.85 -16.27 C-0.85 -16.60 -0.85 -16.93 -0.85 -17.27 C-0.85 -17.60 -0.85 -17.93 -0.85 -18.27 C-0.85 -18.60 -0.85 -18.93 -0.85 -19.27 C-0.85 -19.60 -0.85 -20.10 -0.85 -20.27","rungs":"M0.850 -16.267 L-0.850 -16.267 M0.850 -15.267 L-0.850 -15.267 M0.850 -14.267 L-0.850 -14.267 M0.850 -13.267 L-0.850 -13.267 M0.850 -12.267 L-0.850 -12.267 M0.850 -11.267 L-0.850 -11.267 M0.850 -10.267 L-0.850 -10.267 M1.700 -9.417 L1.700 -7.717 M2.200 -9.417 L2.200 -7.717 M2.700 -9.417 L2.700 -7.717 M3.200 -9.417 L3.200 -7.717 M0.850 -6.867 L-0.850 -6.867 M0.850 -5.867 L-0.850 -5.867 M0.850 -4.867 L-0.850 -4.867 M0.850 -3.867 L-0.850 -3.867 M0.850 -2.867 L-0.850 -2.867 M-1.700 -7.717 L-1.700 -9.417 M-2.200 -7.717 L-2.200 -9.417 M-2.700 -7.717 L-2.700 -9.417 M-3.200 -7.717 L-3.200 -9.417 M-3.700 -7.717 L-3.700 -9.417","nt":[[0.85,-16.267],[0.85,-15.267],[0.85,-14.267],[0.85,-13.267],[0.85,-12.267],[0.85,-11.267],[0.85,-10.267],[1.436,-10.287],[1.72,-10.003],[1.7,-9.417],[2.2,-9.417],[2.7,-9.417],[3.2,-9.417],[3.663,-9.593],[4.154,-9.534],[4.562,-9.253],[4.792,-8.814],[4.792,-8.319],[4.562,-7.881],[4.154,-7.6],[3.663,-7.541],[3.2,-7.717],[2.7,-7.717],[2.2,-7.717],[1.7,-7.717],[1.625,-6.942],[0.85,-6.867],[0.85,-5.867],[0.85,-4.867],[0.85,-3.867],[0.85,-2.867],[1.463,-2.099],[1.495,-1.116],[0.933,-0.31],[-0.0,0.0],[-0.933,-0.31],[-1.495,-1.116],[-1.463,-2.099],[-0.85,-2.867],[-0.85,-3.867],[-0.85,-4.867],[-0.85,-5.867],[-0.85,-6.867],[-1.673,-5.279],[-2.518,-4.805],[-3.427,-5.14],[-3.762,-6.049],[-3.287,-6.894],[-1.7,-7.717],[-2.2,-7.717],[-2.7,-7.717],[-3.2,-7.717],[-3.7,-7.717],[-4.18,-7.6],[-4.656,-7.736],[-5.002,-8.089],[-5.128,-8.567],[-5.002,-9.045],[-4.656,-9.398],[-4.18,-9.534],[-3.7,-9.417],[-3.2,-9.417],[-2.7,-9.417],[-2.2,-9.417],[-1.7,-9.417],[-0.85,-10.267],[-0.85,-11.267],[-0.85,-12.267],[-0.85,-13.267],[-0.85,-14.267],[-0.85,-15.267],[-0.85,-16.267],[-0.85,-17.267],[-0.85,-18.267],[-0.85,-19.267],[-0.85,-20.267]],"anticodon":[34,35,36],"wobble":34,"top":[-0.85,-20.267],"five":[0.85,-16.267],"box":[-5.128,-20.267,4.792,0.0]};
+/* TRNA-GEOMETRY:END */
+/* Colour themes. 'course' matches the BISC 202 slide kit (qgen/deck_builder.py, lecture_kit.py):
+   navy ink, mint tRNA, gold residues, replication-theme RNA orange, Helvetica Neue. */
+const themes={
+ builder:{ink:'#243945',rna:'#c64d28',large:'#d5e3eb',small:'#e6eef3',trna:'#80c3b7',trnaLine:'#2f7f73',antiFill:'#fff3cf',antiLine:'#b8913a',gold:'#f4d783',muted:'#61727b',base:'#fff0e7',baseLine:'#dfaa93',rf:'#d7b7de',groove:'#a2b7c3',chainY:-190,baseSize:18,numSize:12,antiSize:16,font:'Arial, sans-serif'},
+ course:{ink:'#102C42',rna:'#C84B25',large:'#D5E3EB',small:'#EEF4F7',trna:'#B8D9D6',trnaLine:'#2f7f73',antiFill:'#FFF3CF',antiLine:'#B8913A',gold:'#F4D27A',muted:'#5F6871',base:'#FDF0E8',baseLine:'#E2AE96',rf:'#CDBBE3',groove:'none',chainY:-236,baseSize:20,numSize:15,antiSize:18,font:"'Helvetica Neue', Helvetica, Arial, 'Liberation Sans', sans-serif"}
+};
+/* tRNA art (12 Nov 2026): the course cloverleaf from canvas/files/trna_kit (76 nucleotides; straight stems with
+   base-pair rungs, open hairpin loops, variable loop off the junction; compact D and T arms so neighbouring sites
+   fit). Unit geometry has nucleotide 35 at the origin and the 3' end on the LEFT, so the anticodon reads 3'->5'
+   left to right over an mRNA written 5'->3'. TRNA_K = pixels per nucleotide; TRNA_Y = where nucleotide 35 sits. */
+const TRNA_K=6.6,TRNA_Y=-44;
+function trnaArt(T,mono,k=TRNA_K){
+ const G=TRNA_GEOMETRY,line=mono?T.ink:T.trnaLine,fill=mono?'#fff':T.trna,ns='vector-effect="non-scaling-stroke"';
+ let b=`<g transform="translate(0,${TRNA_Y}) scale(${k})"><path d="${G.rungs}" fill="none" stroke="${line}" stroke-width="1.1" opacity=".8" ${ns}/><path d="${G.backbone}" fill="none" stroke="${line}" stroke-width="2.9" stroke-linecap="round" stroke-linejoin="round" ${ns}/>`;
+ G.nt.forEach((p,i)=>{const n=i+1;if(G.anticodon.includes(n))return;b+=`<circle cx="${p[0]}" cy="${p[1]}" r=".27" fill="${fill}" stroke="${line}" stroke-width=".9" ${ns}/>`;});
+ for(const n of G.anticodon){const p=G.nt[n-1];b+=`<circle cx="${p[0]}" cy="${p[1]}" r=".5" fill="${mono?'#fff':T.antiFill}" stroke="${mono?T.ink:T.antiLine}" stroke-width="1.3" ${ns}/>`;}
+ return b+'</g>';
+}
+const TRNA_TOP_X=()=>TRNA_GEOMETRY.top[0]*TRNA_K;
+const esc=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
+function render(s,opts={}){
+ const d=M.validate(s),o=M.occupancy(s),all=M.peptide(s,d),key=!!opts.key;
+ const W=Math.max(1240,d.seq.length*24+660), H=940, mid=410;
+ const xBase=i=>s.rnaDir===1?330+i*24:W-330-i*24;
+ const pBase=s.start-1+s.p*3,px=xBase(pBase+1), dx=s.ribDir,dy=s.vertical;
+ const point=(x,y)=>[px+dx*x,mid+dy*y];
+ const T=themes[s.theme]||themes.builder;
+ const ink=T.ink,rna=T.rna,large=s.mono?'#ededed':T.large,small=s.mono?'#fafafa':T.small,trna=s.mono?'#fff':T.trna,gold=s.mono?'#fff':T.gold;
+ let parts=[];const objects=[];
+ const text=(x,y,value,size=18,color=ink,anchor='middle',extra='')=>`<text x="${x}" y="${y}" text-anchor="${anchor}" fill="${color}" font-size="${size}" font-family="${T.font}" ${extra}>${esc(value)}</text>`;
+ const label=(x,y,value,size=18,color=ink)=>{const p=point(x,y);return text(...p,value,size,color);};
+ const line=(x1,y1,x2,y2,color=ink,width=2,extra='')=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}" ${extra}/>`;
+ function obj(id,name,body,anchor){
+  objects.push({id,name});if((s.omit||[]).includes(id))return;/* omitted: drawn as nothing, not a '?' */const hidden=!key&&s.hidden.includes(id),[ox,oy]=s.offsets[id]||[0,0];
+  if(hidden){if(anchor){parts.push(`<g data-object="${id}" transform="translate(${ox},${oy})" opacity="0.65"><rect x="${anchor[0]-35}" y="${anchor[1]-22}" width="70" height="44" rx="9" fill="white" stroke="#7d929b" stroke-dasharray="5 4"/>${text(anchor[0],anchor[1]+6,'?',22)}</g>`);} return;}
+  parts.push(`<g id="${esc(id)}" data-object="${esc(id)}" aria-label="${esc(name)}" transform="translate(${ox},${oy})">${body}</g>`);
+ }
+ const transformed=body=>`<g transform="translate(${px},${mid}) scale(${dx},${dy})">${body}</g>`;
+ const path=(name,fill,opacity=1)=>`<path d="${shapes[name]}" fill="${fill}" stroke="${ink}" stroke-width="2.5" stroke-linejoin="round" opacity="${opacity}"/>`;
+ if(o.large)obj('large','Large subunit',`<g transform="translate(${px},${mid}) scale(${s.largeDir},${dy})">${path('large',large)}</g>`,point(0,-230));
+ obj('small','Small subunit',transformed(path('small',small)+(T.groove==='none'?'':`<path d="M -193 61 Q -107 91 -22 65 Q 54 40 124 60 M 133 27 Q 158 50 185 26" fill="none" stroke="${T.groove}" stroke-width="2"/>`)),point(0,100));
+ if(s.subunitLabels){if(o.large)obj('large-label','Large-subunit label',label(-155,-175,s.system==='euk'?'60S':'50S',21),point(-155,-175));obj('small-label','Small-subunit label',label(-153,130,s.system==='euk'?'40S':'30S',21),point(-153,130));}
+ for(const [i,site] of ['E','P','A'].entries()){
+  const cx=(i-1)*72;
+  obj(`site-${site}`,`${site}-site label`,s.sites?label(cx,92,site,23):'',point(cx,92));
+ }
+ let rnaBody=line(300,mid,W-300,mid,s.mono?ink:rna,5);
+ for(let i=0;i<d.seq.length;i++){
+  const x=xBase(i);rnaBody+=`<rect x="${x-11}" y="${mid-15}" width="22" height="30" rx="4" fill="${s.mono?'white':T.base}" stroke="${s.mono?ink:T.baseLine}"/>`+text(x,mid+7,d.seq[i],T.baseSize);
+ }
+ for(let j=0;j<d.codons.length;j++){
+  const left=Math.min(xBase(s.start-1+j*3),xBase(s.start+1+j*3))-10,right=left+68;
+  const y=mid+dy*24;rnaBody+=`<path d="M ${left} ${y} v ${dy*6} H ${right} v ${-dy*6}" fill="none" stroke="${ink}" stroke-width="1.3"/>`;
+  if(s.numbers)rnaBody+=text((left+right)/2,mid+dy*49+5,j+1,T.numSize,T.muted);
+ }
+ obj('mrna','mRNA',rnaBody,[W/2,mid]);
+ if(s.polarity)obj('polarity','RNA polarity',text(265,mid+7,s.rnaDir===1?'5′':'3′',23)+text(W-265,mid+7,s.rnaDir===1?'3′':'5′',23),[270,mid]);
+ function beads(id,chain,siteX,y=T.chainY){
+  if(!chain.length||(s.omit||[]).includes('chain'))return;
+  // The attached C-terminal residue stays closest to its tRNA. Long chains fold into a serpentine path.
+  const positions=chain.map((aa,i)=>{const back=chain.length-1-i;return {aa,i,x:siteX-(back%8)*47,y:y-Math.floor(back/8)*47};});
+  let b='';for(let i=1;i<positions.length;i++){const a=point(positions[i-1].x,positions[i-1].y),c=point(positions[i].x,positions[i].y);b+=line(...a,...c,ink,2);}
+  const last=point(siteX,y),attach=point(siteX+TRNA_TOP_X(),TRNA_Y+TRNA_GEOMETRY.top[1]*TRNA_K);parts.push(`<g id="${id}-tether">${line(...last,...attach,ink,2)}</g>`);
+  parts.push(`<g id="${id}-bonds">${b}</g>`);
+  for(const b of positions){const p=point(b.x,b.y);obj(`${id}-${b.i}`,`Peptide residue ${b.i+1}: ${b.aa}`,`<circle cx="${p[0]}" cy="${p[1]}" r="21" fill="${gold}" stroke="${ink}" stroke-width="1.7"/>`+text(p[0],p[1]+5,b.aa,14),p);}
+  const first=point(positions[0].x,positions[0].y-29);if(id!=='incoming')parts.push(`<g id="${id}-N">${text(first[0]-31,Math.max(18,Math.min(H-18,first[1]+24)),'N',12)}</g>`);
+ }
+ for(const [site,cx] of [['E',-72],['P',0],['A',72]]){
+  const t=o[site];if(!t)continue;
+  if(t.releaseFactor){obj('release-factor','Release factor',transformed(`<g transform="translate(${cx},0)">${path('rf',s.mono?'white':T.rf)}</g>`)+label(cx,-91,s.system==='euk'?'eRF1':'RF',17),point(cx,-100));continue;}
+  let b=transformed(`<g transform="translate(${cx},0)">${trnaArt(T,s.mono)}${s.anticodons?[-1,0,1].map(i=>`<line x1="${i*TRNA_K*0.93}" y1="${TRNA_Y+3}" x2="${i*24}" y2="-37" stroke="${s.mono?ink:T.antiLine}" stroke-width="1.2"/><rect x="${i*24-11}" y="-38" width="22" height="21" rx="4" fill="${s.mono?'white':T.antiFill}" stroke="${s.mono?ink:T.antiLine}" stroke-width="1.3"/>`).join(''):''}</g>`);
+  if(s.anticodons){const anti=M.anticodon(d.codons[t.codon]);for(let i=0;i<3;i++)b+=label(cx+(i-1)*24,-21,anti[i],T.antiSize); b+=label(cx-30,-46,'3′',10)+label(cx+30,-46,'5′',10);}
+  // tRNA 3′ acceptor end: drawn where the cloverleaf's 3′ end is (left of centre when the mRNA runs 5′→3′ left to right).
+  b+=label(cx+TRNA_TOP_X()-12,-180,'3′',11);
+  obj(`trna-${site}`,`${site}-site tRNA`,b,point(cx,-106));
+  if(t.chain.length)beads(site==='A'&&s.phase==='bound'?'incoming':'peptide',t.chain,cx);
+ }
+ if(o.released){const q=s.vertical===1?-350:190,chain=o.chain,at=i=>[px-200+(i%8)*46,mid+q+Math.floor(i/8)*44];let bonds='';for(let i=1;i<chain.length;i++)bonds+=line(...at(i-1),...at(i),ink,2);parts.push(`<g id="released-bonds">${bonds}</g>`);/* bonds first so they pass behind the residues */for(let i=0;i<chain.length;i++){const [x,y]=at(i);obj(`released-peptide-${i}`,`Released residue ${i+1}: ${chain[i]}`,`<circle cx="${x}" cy="${y}" r="20" fill="${gold}" stroke="${ink}"/>`+text(x,y+5,chain[i],14),[x,y]);}}
+ const factorPos={'eIF1':[-42,-58],'eIF1A':[78,-69],'eIF2–GTP':[-40,-238],'eIF3':[34,164],'eIF5B–GTP':[112,-205]};
+ const factorColours={'eIF1':'#e4b1be','eIF1A':'#b9abd9','eIF2–GTP':'#b2cda5','eIF3':'#d5c7aa','eIF5B–GTP':'#b8cfa0'};
+ for(const f of o.factors){const [x,y]=factorPos[f],p=point(x,y);let b=transformed(`<g transform="translate(${x},${y})">${path(f,s.mono?'white':factorColours[f])}</g>`)+text(p[0],p[1]+5,f,f.length>7?12:14);obj(`factor-${f}`,f,b,p);}
+ if(s.motion){const a=point(-90,245),b=point(90,245);obj('motion','Movement direction',line(...a,...b,ink,2,'marker-end="url(#arrow)"')+label(0,270,'5′ → 3′',15),point(0,245));}
+ if(s.product){
+  const y=845;parts.push(text(45,y-25,'Completed peptide',17,ink,'start'));
+  const cols=Math.min(20,all.length),bw=Math.min(53,(W-100)/Math.max(cols,1));
+  for(let i=0;i<all.length;i++){const x=65+(i%20)*bw,yy=y+Math.floor(i/20)*40;const show=key||i<s.known;parts.push(`<g id="product-${i}"><rect x="${x-24}" y="${yy-17}" width="48" height="32" rx="15" fill="${show?gold:'white'}" stroke="${ink}" ${show?'':'stroke-dasharray="3 3"'}/>${text(x,yy+5,show?all[i]:'',12)}</g>`);}
+ }
+ /* shift: move the whole complex along a fixed mRNA (static figures only, e.g. scanning) */
+ if(s.shift)parts=parts.map(p=>/^<g id="(mrna|polarity|product-)/.test(p)||/^<g id="product-/.test(p)?p:`<g transform="translate(${s.shift},0)">${p}</g>`);
+ const title=opts.title||'Translation';
+ const svg=`<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}"><title>${esc(title)}</title><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="${ink}"/></marker></defs><rect width="100%" height="100%" fill="white"/>${parts.join('')}</svg>`;
+ return {svg,objects,W,H};
+}
+function library(){
+ const names=Object.keys(shapes),w=1500,h=1300;let body='';
+ for(let i=0;i<names.length;i++){const name=names[i],x=250+(i%3)*500,y=200+Math.floor(i/3)*400,sy=name==='large'?1:name==='small'?1:1.2,oy=name==='large'?140:name==='small'?-45:name==='trna'?130:0;body+=`<g id="library-${esc(name)}"><rect x="${x-240}" y="${y-190}" width="480" height="380" rx="12" fill="white" stroke="#d7e0e3"/><g id="shape-${esc(name)}" transform="translate(${x},${y+oy}) scale(${sy})">${name==='trna'?trnaArt(themes.builder,false,11):`<path d="${shapes[name]}" fill="#d5e3eb" stroke="#243945" stroke-width="2.5"/>`}</g><text x="${x}" y="${y+170}" text-anchor="middle" font-family="Arial" font-size="23" fill="#243945">${esc({large:'Large subunit',small:'Small subunit',trna:'tRNA',rf:'Release factor'}[name]||name)}</text></g>`;}
+ return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect width="100%" height="100%" fill="white"/>${body}</svg>`;
+}
+root.TranslationRender={render,shapes,library,themes};
+})(typeof globalThis==='object'?globalThis:this);
+
+const UI = (() => {
+const K = Kit, el = K.el;
+const C0 = CORE, M = globalThis.TranslationModel, R = globalThis.TranslationRender;
+
+/* The builder's own drawing (course theme, Met not fMet), cropped to the part of the mRNA around the P site. */
+function figure(C, st, label, system) {
+  const s = M.load(Object.assign({ sequence: C.seq, start: C.start, system: system || (C.bact ? "bacterial" : "euk"), theme: "course", fmet: false, motion: false }, st));
+  const r = R.render(s, { title: label });
+  const pBase = s.start - 1 + s.p * 3, px = 330 + (pBase + 1) * 24;
+  const w = 980, h = 590, x0 = Math.max(0, Math.min(r.W - w, px - w / 2)), y0 = 30;
+  const svg = r.svg.replace(/width="\d+" height="\d+" viewBox="[^"]*"/, `width="${w}" height="${h}" viewBox="${x0} ${y0} ${w} ${h}"`);
+  const box = el("div", { class: "trfig", role: "group", "aria-label": label });
+  box.innerHTML = svg;
+  return box;
+}
+const codeBox = () => {
+  const B = "UCAG", t = el("table", { class: "codes" }), hr = el("tr", null, el("th", null, "1st \\ 2nd"));
+  for (const b of B) hr.append(el("th", null, b));
+  t.append(hr);
+  for (const a of B) {
+    const tr = el("tr", null, el("th", null, a));
+    for (const b of B) { const td = el("td"); for (const c of B) { const cod = a + b + c, aa = M.code[cod]; td.append(el("div", { class: aa === "Stop" ? "stop" : "" }, cod + " " + aa)); } tr.append(td); }
+    t.append(tr);
+  }
+  return el("details", { class: "codebox" }, el("summary", null, "Genetic code table (mRNA codons, 5′ → 3′)"), t);
+};
+const marks = (ctx, A, field, rightValue) => (ctx.solved ? { [rightValue]: "right" } : ctx.flag(field) ? { [A[field]]: "flag" } : {});
+function ask(pan, ctx, A, field, legend, opts) {
+  pan.append(K.choice({ legend, options: opts.map((o) => ({ value: o.value, label: o.label || o.value })), value: A[field], disabled: ctx.solved,
+    marks: marks(ctx, A, field, C0.right(opts)), onChange: (v) => { A[field] = v; ctx.change(); } }));
+}
+const swipe = () => el("p", { class: "note swipe" }, "Swipe the diagram sideways to see all of it.");
+const num = (i) => i + 1; // codon numbers as printed under the mRNA in the figure
+
+function startStep(root, C, A, ctx) {
+  const pan = el("div", { class: "panel" }, el("h2", null, "The mRNA"),
+    el("p", { class: "note" }, "Click the base where translation starts. Any base of the start codon counts. Click another base to change your answer."));
+  const row = el("div", { class: "mrna", role: "group", "aria-label": "mRNA bases, 5′ to 3′" });
+  row.append(el("span", { class: "end" }, "5′"));
+  [...C.seq].forEach((b, i) => {
+    const n = i + 1, cls = ["b"];
+    if (ctx.solved && n >= C.start && n <= C.start + 2) cls.push("ok");
+    else if (A.pick === n) cls.push(ctx.flag("pick") ? "flag" : "sel");
+    const btn = el("button", { type: "button", class: cls.join(" "), "aria-label": "base " + n + ", " + b, "aria-pressed": A.pick === n ? "true" : "false" }, b);
+    if (ctx.solved) btn.disabled = true;
+    btn.addEventListener("click", () => { A.pick = n; ctx.change(); ctx.rerender(); const bs = document.querySelectorAll(".mrna button.b"); if (bs[i]) bs[i].focus({ preventScroll: true }); });
+    row.append(btn);
+  });
+  row.append(el("span", { class: "end" }, "3′"));
+  pan.append(row);
+  root.append(pan);
+}
+function startReveal(root, C) {
+  root.append(el("div", { class: "panel" }, el("h2", null, "Initiation complete"),
+    figure(C, { phase: "joined", p: 0 }, "Ribosome assembled on the start codon, Met in the P site"),
+    el("p", { class: "note" }, "The large subunit has joined. The initiator tRNA, carrying Met, is in the P site over the start codon. The A site is empty.")));
+}
+
+function trnaStep(root, C, A, ctx) {
+  const pan = el("div", { class: "panel" }, el("h2", null, "The ribosome, ready for the next tRNA"), swipe(),
+    figure(C, { phase: "empty", p: C.k }, "Ribosome with codon " + (C.k + 1) + " in the P site and the A site empty"), codeBox());
+  ask(pan, ctx, A, "anti", "Which anticodon does the tRNA that enters the A site have? (Written 3′ → 5′, lined up under the codon.)", C0_anti(C));
+  ask(pan, ctx, A, "aa", "Which amino acid does that tRNA carry?", C.opt2.aa);
+  root.append(pan);
+}
+const C0_anti = (C) => C.opt2.anti.map((o) => ({ value: o.value, tag: o.tag, label: "3′-" + o.value + "-5′" }));
+function trnaReveal(root, C) {
+  root.append(el("div", { class: "panel" }, el("h2", null, "The tRNA is in the A site"),
+    figure(C, { phase: "bound", p: C.k }, "Charged tRNA bound in the A site"),
+    el("p", { class: "note" }, "Codon " + (C.k + 2) + " is in the A site. Its tRNA brings " + C.codons[C.k + 1] + "'s amino acid, " + CORE.right(C.opt2.aa) + ".")));
+}
+
+function bondStep(root, C, A, ctx) {
+  const pan = el("div", { class: "panel" }, el("h2", null, "A charged tRNA is in the A site"), swipe(),
+    figure(C, { phase: "bound", p: C.k2 }, "tRNAs in the P and A sites, codon " + (C.k2 + 1) + " in P and codon " + (C.k2 + 2) + " in A"));
+  ask(pan, ctx, A, "tx", "The peptide bond forms. What happens to the chain?", C.opt3.tx);
+  ask(pan, ctx, A, "pos", "Then the ribosome translocates. Where is it now?", C.opt3.pos);
+  root.append(pan);
+}
+function bondReveal(root, C) {
+  const pan = el("div", { class: "panel" }, el("h2", null, "After the peptide bond and translocation"));
+  pan.append(figure(C, { phase: "transfer", p: C.k2 }, "After the peptide bond: the chain is on the A-site tRNA"),
+    figure(C, { phase: "moved", p: C.k2 + 1 }, "After translocation: codon " + (C.k2 + 2) + " in P, codon " + (C.k2 + 3) + " in A, an empty tRNA in E"),
+    el("p", { class: "note" }, "Top: the chain is now on the tRNA in the A site and the P-site tRNA is empty. Bottom: the ribosome has moved one codon toward the 3′ end. The empty tRNA is in the E site, and the A site is open for the next tRNA."));
+  root.append(pan);
+}
+
+function stopStep(root, C, A, ctx) {
+  const pan = el("div", { class: "panel" }, el("h2", null, "A stop codon reaches the A site"), swipe(),
+    figure(C, { phase: "moved", p: C.sense - 1 }, "Stop codon " + C.stopCodon + " in the A site"), codeBox());
+  ask(pan, ctx, A, "rf", "What happens at the stop codon?", C.opt4.rf);
+  ask(pan, ctx, A, "pep", "Which chain is released? (N-terminus first)", C.opt4.pep);
+  root.append(pan);
+}
+function stopReveal(root, C) {
+  root.append(el("div", { class: "panel" }, el("h2", null, "Termination"),
+    figure(C, { phase: "stop", p: C.sense - 1 }, "Release factor in the A site"),
+    figure(C, { phase: "released", p: C.sense - 1 }, "Finished chain released"),
+    el("p", { class: "note" }, "A release factor binds the stop codon. The chain is released from the last tRNA: " + C0.dash(C.peptide) + ".")));
+}
+
+/* The model's own sequence of states, with a caption for each. */
+const CAPTION = {
+  early: () => "Start-site inspection: the small subunit, the initiator tRNA and initiation factors have attached at the 5′ cap and scanned along to the first AUG.",
+  late: () => "The initiator tRNA is paired with the start codon. The large subunit is about to join.",
+  joined: () => "The large subunit has joined. The initiator tRNA, carrying Met, is in the P site over the start codon. The A site is empty.",
+  empty: () => "The A site is empty and ready for the next tRNA.",
+  bound: (s, C) => "A charged tRNA enters the A site: its anticodon 3′-" + M.anticodon(C.codons[s.p + 1]) + "-5′ pairs with codon " + (s.p + 2) + " (" + C.codons[s.p + 1] + ").",
+  transfer: () => "Peptide bond: the chain moves from the P-site tRNA onto the amino acid on the A-site tRNA.",
+  moved: () => "Translocation: the ribosome moves one codon toward the 3′ end. The empty tRNA is in the E site and will leave. The A site is open again.",
+  stop: () => "A stop codon is in the A site. No tRNA pairs with it. A release factor binds instead.",
+  released: () => "The chain is released from the last tRNA. Translation of this mRNA is finished.",
+};
+function explore(root, C) {
+  let sys = C.bact ? "bacterial" : "euk", i = 0, list = [];
+  const pan = el("div", { class: "panel" }, el("h2", null, "Explore: step the ribosome"),
+    el("p", { class: "note" }, "Move through the whole translation of this mRNA, one event at a time. The caption says what is happening."));
+  const out = el("div"), cap = el("p", { class: "caption", "aria-live": "polite" }), pos = el("span", { class: "note" });
+  const back = el("button", { class: "btn", type: "button" }, "← Back"), fwd = el("button", { class: "btn primary", type: "button" }, "Next →");
+  const select = el("select", { "aria-label": "Type of cell" }, el("option", { value: "bacterial" }, "Bacterium (50S and 30S)"), el("option", { value: "euk" }, "Eukaryote (60S and 40S)"));
+  select.value = sys;
+  const build = () => {
+    list = []; let s = M.load({ sequence: C.seq, start: C.start, system: sys, theme: "course", fmet: false, motion: false, phase: sys === "euk" ? "early" : "joined", p: 0 });
+    for (;;) { list.push(s); try { s = M.next(s); } catch (e) { break; } }
+    i = Math.min(i, list.length - 1);
+  };
+  const draw = () => {
+    K.clear(out);
+    const s = list[i];
+    out.append(swipe(), figure(C, { phase: s.phase, p: s.p }, "State " + (i + 1) + " of " + list.length, sys));
+    cap.textContent = CAPTION[s.phase](s, C);
+    pos.textContent = "Event " + (i + 1) + " of " + list.length;
+    back.disabled = i === 0; fwd.disabled = i === list.length - 1;
+  };
+  back.addEventListener("click", () => { if (i > 0) { i--; draw(); } });
+  fwd.addEventListener("click", () => { if (i < list.length - 1) { i++; draw(); } });
+  select.addEventListener("change", () => { sys = select.value; i = 0; build(); draw(); });
+  build(); draw();
+  pan.append(el("div", { class: "stepbar" }, el("label", null, "Cell", select), back, fwd, pos), cap, out);
+  root.append(pan);
+}
+
+return {
+  eyebrow: "BISC 202 · Week 11 · Translation",
+  title: "Translation: step the ribosome",
+  newLabel: "New mRNA",
+  footer: ["Invented mRNAs with the standard genetic code, drawn with the same ribosome figures as the lecture. Initiator tRNA is labelled Met. Klug Chapter 14.",
+    "Eukaryotic mRNAs here have no AUG before the start codon; bacterial mRNAs have a Shine–Dalgarno sequence (AGGAGG) just upstream of it."],
+  brief(C) {
+    return { q: "Follow the ribosome along this mRNA.", text: C.bact ? "This is a bacterial mRNA, written 5′ → 3′." : "This is a eukaryotic mRNA, written 5′ → 3′, with a cap at its 5′ end.", given: "5′-" + C.seq + "-3′" };
+  },
+  steps: [
+    { task: () => "Click the base where translation starts on this mRNA.", render: startStep, reveal: startReveal,
+      win: (C) => C.bact ? "The small subunit's rRNA pairs with the Shine–Dalgarno sequence (AGGAGG), which places the AUG at base " + C.start + " in the P site." +
+        (C.decoy ? " The AUG at base " + C.first + " comes before the Shine–Dalgarno sequence, so it is not used." : "")
+        : "The small subunit attaches at the 5′ cap and scans along the mRNA. The first AUG it reaches, at base " + C.start + ", is the start codon.",
+      winTitle: () => "Right: translation starts at the AUG" },
+    { task: (C) => "Codon " + (C.k + 1) + " is in the P site. Choose the tRNA that enters the A site, which holds codon " + (C.k + 2) + ".", render: trnaStep, reveal: trnaReveal,
+      win: (C) => "The A-site codon is " + C.codons[C.k + 1] + ". The anticodon pairs with it base by base: 3′-" + CORE.comp(C.codons[C.k + 1]) + "-5′. That codon codes for " + CORE.right(C.opt2.aa) + ".",
+      winTitle: () => "Right: the tRNA pairs with the A-site codon" },
+    { task: (C) => "A charged tRNA is in the A site, with codon " + (C.k2 + 1) + " in P and codon " + (C.k2 + 2) + " in A. Answer both questions.", render: bondStep, reveal: bondReveal,
+      win: (C) => "The peptide bond is made by moving the chain from the P-site tRNA to the amino acid on the A-site tRNA. Then the ribosome moves one codon toward the 3′ end, so codon " + (C.k2 + 2) + " is in P and codon " + (C.k2 + 3) + " is in A.",
+      winTitle: () => "Right: the chain moves, then the ribosome moves" },
+    { task: (C) => "The ribosome has moved until the stop codon (codon " + (C.sense + 1) + ", " + C.stopCodon + ") is in the A site. Answer both questions.", render: stopStep, reveal: stopReveal,
+      win: (C) => "No tRNA pairs with " + C.stopCodon + ". A release factor binds the A site and the chain is released. The chain has " + C.peptide.length + " amino acids: " + CORE.dash(C.peptide) + ". The stop codon adds nothing.",
+      winTitle: () => "Right: a release factor ends translation" },
+  ],
+  doneTitle: "mRNA translated",
+  doneText: () => "You followed one mRNA from the start codon to the release of the chain. Step through it below, or press “Try a new case”.",
+  done: explore,
+};
+})();
+Kit.run(CORE, UI);
+</script>
+
+</body>
+</html>
